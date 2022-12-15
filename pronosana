@@ -274,8 +274,8 @@ def initiate_pronosana():
 
     print(f'[PRONOSANA INIT] -> Creating Pronosana Containers')
     PROM_CONTAINER = [
-        "docker", "run", "-d", "--rm", f"--name={PROMETHEUS_CONTAINER_NAME}", "-v", f"{PRONOSANA_VOLUME}:/prometheus", "-v",
-        f"{PROM_CONF_FILE}:/etc/prometheus/prometheus.yml", f"--net={PRONOSANA_NETWORK}", "-p", "9090:9090",
+        "docker", "run", "-d", "--rm", f"--name={PROMETHEUS_CONTAINER_NAME}", "-v", f"{PRONOSANA_VOLUME}:/prometheus:Z", "-v",
+        f"{PROM_CONF_FILE}:/etc/prometheus/prometheus.yml:Z", f"--net={PRONOSANA_NETWORK}", "-p", "9090:9090",
         "prom/prometheus", "--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus",
         "--storage.tsdb.allow-overlapping-blocks", "--web.console.libraries=/usr/share/prometheus/console_libraries",
         "--web.console.templates=/usr/share/prometheus/consoles", "--storage.tsdb.max-block-duration=2h",
@@ -286,8 +286,8 @@ def initiate_pronosana():
     print(result.stdout.decode(UTF_8))
     time.sleep(5)
     THANOS_SIDECAR_CONTAINER = [
-        "docker", "run", "-u", "nobody", "-d", f"--name={THANOS_SIDECAR_CONTAINER_NAME}", "-v", f"{PRONOSANA_VOLUME}:/prometheus",
-        f"--net={PRONOSANA_NETWORK}", "-v", f"{THANOS_CONF_FILE}:/home/conf/thanos_conf.yml", "-p", "19090:19090",
+        "docker", "run", "-u", "nobody", "-d", f"--name={THANOS_SIDECAR_CONTAINER_NAME}", "-v", f"{PRONOSANA_VOLUME}:/prometheus:Z",
+        f"--net={PRONOSANA_NETWORK}", "-v", f"{THANOS_CONF_FILE}:/home/conf/thanos_conf.yml:Z", "-p", "19090:19090",
         "thanosio/thanos:v0.29.0", "sidecar", f'--tsdb.path', f'/prometheus', f'--prometheus.url', f'http://{PROMETHEUS_CONTAINER_NAME}:9090',
         f'--objstore.config-file',  '/home/conf/thanos_conf.yml', "--http-address", "0.0.0.0:19191",
         "--grpc-address", "0.0.0.0:19090", "--shipper.upload-compacted"
