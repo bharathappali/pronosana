@@ -274,7 +274,7 @@ def initiate_pronosana():
 
     print(f'[PRONOSANA INIT] -> Creating Pronosana Containers')
     PROM_CONTAINER = [
-        "docker", "run", "-d", "--rm", f"--name={PROMETHEUS_CONTAINER_NAME}", "-v", f"{PRONOSANA_VOLUME}:/prometheus:Z", "-v",
+        "docker", "run", "-d", "-u", "nobody", "--rm", f"--name={PROMETHEUS_CONTAINER_NAME}", "-v", f"{PRONOSANA_VOLUME}:/prometheus:Z", "-v",
         f"{PROM_CONF_FILE}:/etc/prometheus/prometheus.yml:Z", f"--net={PRONOSANA_NETWORK}", "-p", "9090:9090",
         "prom/prometheus", "--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus",
         "--storage.tsdb.allow-overlapping-blocks", "--web.console.libraries=/usr/share/prometheus/console_libraries",
@@ -286,7 +286,7 @@ def initiate_pronosana():
     print(result.stdout.decode(UTF_8))
     time.sleep(5)
     THANOS_SIDECAR_CONTAINER = [
-        "docker", "run", "-u", "nobody", "-d", f"--name={THANOS_SIDECAR_CONTAINER_NAME}", "-v", f"{PRONOSANA_VOLUME}:/prometheus:Z",
+        "docker", "run", "--rm", "-u", "nobody", "-d", f"--name={THANOS_SIDECAR_CONTAINER_NAME}", "-v", f"{PRONOSANA_VOLUME}:/prometheus:Z",
         f"--net={PRONOSANA_NETWORK}", "-v", f"{THANOS_CONF_FILE}:/home/conf/thanos_conf.yml:Z", "-p", "19090:19090",
         "thanosio/thanos:v0.29.0", "sidecar", f'--tsdb.path', f'/prometheus', f'--prometheus.url', f'http://{PROMETHEUS_CONTAINER_NAME}:9090',
         f'--objstore.config-file',  '/home/conf/thanos_conf.yml', "--http-address", "0.0.0.0:19191",
@@ -296,14 +296,14 @@ def initiate_pronosana():
     print(result.stdout.decode(UTF_8))
     time.sleep(5)
     THANOS_QUERIER_CONTAINER = [
-        "docker", "run", "-u", "nobody", "-d", "--rm", f"--name={THANOS_QUERIER_CONTAINER_NAME}", f"--net={PRONOSANA_NETWORK}",
+        "docker", "run", "--rm", "-u", "nobody", "-d", "--rm", f"--name={THANOS_QUERIER_CONTAINER_NAME}", f"--net={PRONOSANA_NETWORK}",
         "-p", "19192:19192", "thanosio/thanos:v0.29.0", "query", "--http-address", "0.0.0.0:19192", "--store", f"{THANOS_SIDECAR_CONTAINER_NAME}:19090"
     ]
     result = subprocess.run(THANOS_QUERIER_CONTAINER, stdout=subprocess.PIPE)
     print(result.stdout.decode(UTF_8))
     time.sleep(5)
     GRAFANA_CONTAINER = [
-        "docker", "run", "-d", "-p", "3000:3000", f"--net={PRONOSANA_NETWORK}", "-v",
+        "docker", "run", "--rm", "-d", "-p", "3000:3000", f"--net={PRONOSANA_NETWORK}", "-v",
         f"{os.getcwd()}/grafana:/etc/grafana/provisioning/",
         f"--name={GRAFANA_CONTAINER_NAME}",
         "grafana/grafana:latest"
@@ -389,7 +389,7 @@ def initiate_cleanup():
     print(result.stdout.decode(UTF_8))
     print("[PRONOSANA CLEANUP] -> Pronosana containers removed")
 
-
+    time.sleep(10)
     print("[PRONOSANA CLEANUP] -> Cleaning Up volumes")
     REMOVE_VOLUMES = [
         'docker',
@@ -404,6 +404,7 @@ def initiate_cleanup():
     print(result.stdout.decode(UTF_8))
     print("[PRONOSANA CLEANUP] -> Pronosana volumes removed")
 
+    time.sleep(10)
     print("[PRONOSANA CLEANUP] -> Cleaning Up Networks")
     REMOVE_NETWORKS = [
         'docker',
