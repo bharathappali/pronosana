@@ -9,8 +9,6 @@ minikube start
 
 mkdir -p /tmp/pronosana
 
-git clone https://github.com/bharathappali/pronosana
-cd pronosana
 kubectl apply -f test
 sleep 120
 deployment_name=$(kubectl get pods | grep "pronosana-deployment" | cut -d " " -f1)
