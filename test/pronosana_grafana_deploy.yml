@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pronosana-grafana-deployment
+  labels:
+    app: pronosana-grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pronosana-grafana
+  template:
+    metadata:
+      labels:
+        app: pronosana-grafana
+    spec:
+      volumes:
+        - name: grafana-tmp
+          emptyDir: { }
+      containers:
+      - name: grafana
+        image: grafana/grafana:latest
+        ports:
+        - containerPort: 3000
+          name: grafana-port
+        volumeMounts:
+          - mountPath: "/etc/grafana/provisioning/"
+            name: grafana-tmp
+      initContainers:
+      - name: grafana-json-downloader
+        image: appropriate/curl
+        args:
+          - "-o"
+          - "/etc/grafana/provisioning/dashboards/pronosana_docker_dashboard.json"
+          - "--create-dirs"
+          - "https://raw.githubusercontent.com/bharathappali/pronosana/main/grafana-minikube/dashboards/pronosana_docker_dashboard.json"
+        volumeMounts:
+        - name: grafana-tmp
+          mountPath: "/etc/grafana/provisioning/"
+      - name: grafana-dashboard-downloader
+        image: appropriate/curl
+        args:
+          - "-o"
+          - "/etc/grafana/provisioning/dashboards/dashboard.yml"
+          - "--create-dirs"
+          - "https://raw.githubusercontent.com/bharathappali/pronosana/main/grafana-minikube/dashboards/dashboard.yml"
+        volumeMounts:
+          - name: grafana-tmp
+            mountPath: "/etc/grafana/provisioning/"
+      - name: grafana-datasource-downloader
+        image: appropriate/curl
+        args:
+          - "-o"
+          - "/etc/grafana/provisioning/datasources/datasource.yml"
+          - "--create-dirs"
+          - "https://raw.githubusercontent.com/bharathappali/pronosana/main/grafana-minikube/datasources/datasource.yml"
+        volumeMounts:
+          - name: grafana-tmp
+            mountPath: "/etc/grafana/provisioning/"

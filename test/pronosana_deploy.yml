@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pronosana-deployment
+  labels:
+    app: pronosana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pronosana
+  template:
+    metadata:
+      labels:
+        app: pronosana
+    spec:
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
+      volumes:
+        - name: prom-tmp
+          emptyDir: { }
+        - name: thanos-tmp
+          emptyDir: { }
+        - name: pronosana-pv-storage
+          persistentVolumeClaim:
+            claimName: pronosana-pv-claim
+      containers:
+      - name: prometheus
+        image: prom/prometheus:latest
+        args: ["--config.file=/tmp/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus",
+        "--storage.tsdb.allow-overlapping-blocks", "--web.console.libraries=/usr/share/prometheus/console_libraries",
+        "--web.console.templates=/usr/share/prometheus/consoles", "--storage.tsdb.max-block-duration=2h",
+        "--storage.tsdb.min-block-duration=2h", "--storage.tsdb.retention.time=20d",
+        "--storage.tsdb.retention.size=2GB", "--web.enable-lifecycle"]
+        ports:
+        - containerPort: 9090
+          name: prom-port
+        volumeMounts:
+          - mountPath: "/prometheus"
+            name: pronosana-pv-storage
+          - mountPath: "/tmp/prometheus"
+            name: prom-tmp
+      - name: thanos
+        image: thanosio/thanos:v0.29.0
+        args: ["sidecar", "--tsdb.path", "/prometheus", "--prometheus.url", "http://0.0.0.0:9090",
+        "--objstore.config-file",  "/home/conf/thanos_conf.yml", "--http-address", "127.0.0.1:19191",
+        "--grpc-address", "127.0.0.1:19090", "--shipper.upload-compacted"]
+        ports:
+        - containerPort: 19191
+          name: thanos-http
+        - containerPort: 19090
+          name: thanos-grpc
+        volumeMounts:
+          - mountPath: "/prometheus"
+            name: pronosana-pv-storage
+          - mountPath: "/home/conf"
+            name: thanos-tmp
+      - name: thanos-querier
+        image: thanosio/thanos:v0.29.0
+        args: ["query", "--http-address", "0.0.0.0:19192", "--store", "127.0.0.1:19090"]
+        ports:
+        - containerPort: 19192
+          name: thanos-qhttp
+      initContainers:
+      - name: prom-conf-downloader
+        image: appropriate/curl
+        args:
+          - "-o"
+          - "/tmp/prometheus/prometheus.yml"
+          - "https://raw.githubusercontent.com/bharathappali/pronosana/main/setup/configs/prometheus_setup.yml"
+        volumeMounts:
+        - name: prom-tmp
+          mountPath: "/tmp/prometheus"
+      - name: thanos-conf-downloader
+        image: appropriate/curl
+        args:
+          - "-o"
+          - "/home/conf/thanos_conf.yml"
+          - "https://raw.githubusercontent.com/bharathappali/pronosana/main/setup/configs/thanos_setup.yml"
+        volumeMounts:
+          - name: thanos-tmp
+            mountPath: "/home/conf"
