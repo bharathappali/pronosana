@@ -10,6 +10,7 @@ minikube start
 mkdir -p /tmp/pronosana
 
 kubectl apply -f test
+echo "Sleeping for 120 seconds for prometheus to come up along with thanos"
 sleep 120
 deployment_name=$(kubectl get pods | grep "pronosana-deployment" | cut -d " " -f1)
 kubectl cp ${PWD}/tmp_data/omf_data.txt default/${deployment_name}:/home -c prometheus
