@@ -558,7 +558,7 @@ def validate_ip(obtained_ip):
 
 def get_minikube_ip():
     GET_MINIKUBE_IP = [
-        "minikube"
+        "minikube",
         "ip"
     ]
     result = subprocess.run(GET_MINIKUBE_IP, stdout=subprocess.PIPE)
@@ -627,14 +627,13 @@ def initiate_pronosana_minikube(force=False):
     if force:
         initiate_cleanup_minikube()
     minikube_apply_manifests()
-    print("[PRONOSANA INIT] -> Sleeping for 2 mins to get the pods running")
-    time.sleep(120)
+    print("[PRONOSANA INIT] -> Init completed please check pod status before running backfill")
 
 
 def initiate_backfill_minikube(json_path: str):
-    pod_name = get_pod_name(PRONOSANA_DEPLOYMENT_NAME)
     pod_running = check_if_pod_running(PRONOSANA_DEPLOYMENT_NAME)
     if pod_running:
+        pod_name = get_pod_name(PRONOSANA_DEPLOYMENT_NAME)
         if pod_name is not None:
             copy_omf_file_to_prometheus(target=MINIKUBE, namespace=PRONOSANA_NAMESPACE, pod_name=pod_name)
             BACKFILL_DATA = [
@@ -661,11 +660,13 @@ def initiate_backfill_minikube(json_path: str):
             if ip is not None:
                 wb.open(f"http://{ip}:{MINIKUBE_GRAFANA_PORT}", new=2)
         else:
-            print("[PRONOSANA BACKFILL] -> Pod not started yet. Please try after sometime")
+            print(
+                "[PRONOSANA BACKFILL] -> Internal Error occured. Unable to extract pronosana pod name. Try again after a complete cleanup")
             exit(1)
     else:
-        print("[PRONOSANA BACKFILL] -> Internal Error occured. Unable to extract pronosana pod name. Try again after a complete cleanup")
+        print("[PRONOSANA BACKFILL] -> Pod not started yet. Please try after sometime")
         exit(1)
+
 
 
 def initiate_cleanup_minikube():
