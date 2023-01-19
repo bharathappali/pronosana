@@ -9,7 +9,7 @@ minikube start
 
 mkdir -p /tmp/pronosana
 
-kubectl apply -f test
+kubectl apply -f pronosana_configs/minikube
 echo "Sleeping for 120 seconds for prometheus to come up along with thanos"
 sleep 120
 deployment_name=$(kubectl get pods | grep "pronosana-deployment" | cut -d " " -f1)

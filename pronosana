@@ -69,6 +69,9 @@ PRONOSANA_DEPLOYMENT_NAME = "pronosana-deployment"
 # Pronosana namespace
 PRONOSANA_NAMESPACE = "pronosana"
 
+# Minikube ports
+MINIKUBE_GRAFANA_PORT = 30300
+
 USE_REAL_DATA = False
 
 # Dummy CPU Values
@@ -82,6 +85,10 @@ MIN_MEM_REQUEST = 250
 MAX_MEM_REQUEST = 500
 MIN_MEM_LIMIT = 350
 MAX_MEM_LIMIT = 800
+
+# IP ranges
+MIN_IP_RANGE = 0
+MAX_IP_RANGE = 255
 
 # JSON Keys
 EXPERIMENT_NAME = "experiment_name"
@@ -515,6 +522,31 @@ def get_pod_name(deployment_name=PRONOSANA_DEPLOYMENT_NAME, namespace=PRONOSANA_
             return line.split(' ')[0].strip()
     return None
 
+def validate_ip(obtained_ip):
+    split_ip = obtained_ip.split('.')
+    if len(split_ip) != 4:
+        return False
+    for ip_addr_part in split_ip:
+        if not ip_addr_part.isdigit():
+            return False
+        i = int(ip_addr_part)
+        if i < MIN_IP_RANGE or i > MAX_IP_RANGE:
+            return False
+    return True
+
+
+def get_minikube_ip():
+    GET_MINIKUBE_IP = [
+        "minikube"
+        "ip"
+    ]
+    result = subprocess.run(GET_MINIKUBE_IP, stdout=subprocess.PIPE)
+    lines = result.stdout.decode(UTF_8).splitlines()
+
+    if validate_ip(lines[0].strip()):
+        return lines[0].strip()
+    return None
+
 
 def minikube_apply_manifests():
     APPLY_MANIFESTS = [
@@ -602,6 +634,9 @@ def initiate_backfill_minikube(json_path: str):
         result = subprocess.run(BACKFILL_DATA, stdout=subprocess.PIPE)
         print(result.stdout.decode(UTF_8))
         print("[PRONOSANA BACKFILL] -> Pronosana backfill completed")
+        ip = get_minikube_ip()
+        if ip is not None:
+            wb.open(f"http://{ip}:{MINIKUBE_GRAFANA_PORT}", new=2)
     else:
         print("[PRONOSANA BACKFILL] -> Internal Error occured. Unable to extract pronosana pod name. Try again after a complete cleanup")
         exit(1)
