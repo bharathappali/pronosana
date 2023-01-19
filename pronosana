@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import random
+import re
 import subprocess
 import time
 from datetime import datetime, timedelta
@@ -71,6 +72,8 @@ PRONOSANA_NAMESPACE = "pronosana"
 
 # Minikube ports
 MINIKUBE_GRAFANA_PORT = 30300
+
+POD_STATUS_RUNNING = "running"
 
 USE_REAL_DATA = False
 
@@ -519,8 +522,26 @@ def get_pod_name(deployment_name=PRONOSANA_DEPLOYMENT_NAME, namespace=PRONOSANA_
 
     for line in lines:
         if deployment_name in line:
+            line = re.sub(' +', ' ', line)
             return line.split(' ')[0].strip()
     return None
+
+def check_if_pod_running(deployment_name=PRONOSANA_DEPLOYMENT_NAME, namespace=PRONOSANA_NAMESPACE):
+    GET_PODS = [
+        'kubectl',
+        '-n',
+        namespace,
+        'get',
+        'pods'
+    ]
+    result = subprocess.run(GET_PODS, stdout=subprocess.PIPE)
+    lines = result.stdout.decode(UTF_8).splitlines()
+
+    for line in lines:
+        if deployment_name in line:
+            line = re.sub(' +', ' ', line)
+            return line.split(' ')[2].strip().lower() == POD_STATUS_RUNNING
+    return False
 
 def validate_ip(obtained_ip):
     split_ip = obtained_ip.split('.')
@@ -612,31 +633,36 @@ def initiate_pronosana_minikube(force=False):
 
 def initiate_backfill_minikube(json_path: str):
     pod_name = get_pod_name(PRONOSANA_DEPLOYMENT_NAME)
-    if pod_name is not None:
-        copy_omf_file_to_prometheus(target=MINIKUBE, namespace=PRONOSANA_NAMESPACE, pod_name=pod_name)
-        BACKFILL_DATA = [
-            "kubectl",
-            "exec",
-            "-n",
-            f"{PRONOSANA_NAMESPACE}",
-            "-it",
-            f"{pod_name}",
-            "-c",
-            "prometheus",
-            "promtool",
-            "tsdb",
-            "create-blocks-from",
-            "openmetrics",
-            "/home/omf_data.txt",
-            "/prometheus"
-        ]
-        print("[PRONOSANA BACKFILL] -> Initiating pronosana backfill")
-        result = subprocess.run(BACKFILL_DATA, stdout=subprocess.PIPE)
-        print(result.stdout.decode(UTF_8))
-        print("[PRONOSANA BACKFILL] -> Pronosana backfill completed")
-        ip = get_minikube_ip()
-        if ip is not None:
-            wb.open(f"http://{ip}:{MINIKUBE_GRAFANA_PORT}", new=2)
+    pod_running = check_if_pod_running(PRONOSANA_DEPLOYMENT_NAME)
+    if pod_running:
+        if pod_name is not None:
+            copy_omf_file_to_prometheus(target=MINIKUBE, namespace=PRONOSANA_NAMESPACE, pod_name=pod_name)
+            BACKFILL_DATA = [
+                "kubectl",
+                "exec",
+                "-n",
+                f"{PRONOSANA_NAMESPACE}",
+                "-it",
+                f"{pod_name}",
+                "-c",
+                "prometheus",
+                "promtool",
+                "tsdb",
+                "create-blocks-from",
+                "openmetrics",
+                "/home/omf_data.txt",
+                "/prometheus"
+            ]
+            print("[PRONOSANA BACKFILL] -> Initiating pronosana backfill")
+            result = subprocess.run(BACKFILL_DATA, stdout=subprocess.PIPE)
+            print(result.stdout.decode(UTF_8))
+            print("[PRONOSANA BACKFILL] -> Pronosana backfill completed")
+            ip = get_minikube_ip()
+            if ip is not None:
+                wb.open(f"http://{ip}:{MINIKUBE_GRAFANA_PORT}", new=2)
+        else:
+            print("[PRONOSANA BACKFILL] -> Pod not started yet. Please try after sometime")
+            exit(1)
     else:
         print("[PRONOSANA BACKFILL] -> Internal Error occured. Unable to extract pronosana pod name. Try again after a complete cleanup")
         exit(1)
