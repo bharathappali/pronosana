@@ -2,6 +2,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: pronosana-pv-claim
+  namespace: pronosana
 spec:
   storageClassName: manual
   accessModes:

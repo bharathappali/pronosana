@@ -10,7 +10,7 @@ datasources:
   type: prometheus
   access: proxy
   orgId: 1
-  url: http://pronosana-thanos-service.default.svc.cluster.local:19192
+  url: http://pronosana-thanos-service.pronosana.svc.cluster.local:19192
   basicAuth: true
   basicAuthUser: admin
 
