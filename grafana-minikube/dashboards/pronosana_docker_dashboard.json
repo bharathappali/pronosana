@@ -222,14 +222,14 @@
           "expr": "kruize_recommendations_memory{resource_setting=\"capacity\",experiment_name=~\"$experimentName\"}",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "Recommended Memory Request",
+          "legendFormat": "Recommended Memory Capacity",
           "refId": "A"
         },
         {
           "expr": "kruize_recommendations_memory{resource_setting=\"max\",experiment_name=~\"$experimentName\"}",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "Recommended Memory Limit",
+          "legendFormat": "Recommended Memory Max",
           "refId": "B"
         },
         {
