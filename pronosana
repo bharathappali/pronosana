@@ -830,8 +830,10 @@ def main(
 ):
     mode = mode.strip().lower()
     target = target.strip().lower()
-    usage_json_path = usage_data_json.strip()
-    recommendation_json_path = recommendation_data_json.strip()
+    if usage_data_json is not None:
+        usage_json_path = usage_data_json.strip()
+    if recommendation_data_json is not None:
+        recommendation_json_path = recommendation_data_json.strip()
     if mode not in MODES:
         print(f"Invalid mode - {mode}. Supported modes are {MODES}")
         exit(1)
