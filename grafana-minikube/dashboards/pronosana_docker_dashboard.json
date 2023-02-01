@@ -21,8 +21,12 @@
   "panels": [
     {
       "aliasColors": {
-        "Recommended CPU Limit": "#bf1b00",
-        "Recommended CPU Request": "#1f78c1"
+        "Current CPU Usage": "#508642",
+        "Original CPU Limit": "#d683ce",
+        "Original CPU Request": "#f9ba8f",
+        "Current CPU Throttle": "#ee67e8",
+        "Recommended CPU Max": "#bf1b00",
+        "Recommended CPU Capacity": "#1f78c1"
       },
       "bars": false,
       "dashLength": 10,
@@ -58,12 +62,12 @@
       "renderer": "flot",
       "seriesOverrides": [
         {
-          "alias": "Recommended CPU Request",
+          "alias": "Recommended CPU Capacity",
           "dashes": true,
           "spaceLength": 5
         },
         {
-          "alias": "Recommended CPU Limit",
+          "alias": "Recommended CPU Max",
           "dashes": true,
           "spaceLength": 5
         }
@@ -73,20 +77,48 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "kruize_recommendations_cpu{resource_setting=\"requests\",experiment_name=~\"$experimentName\"}",
+          "expr": "kruize_recommendations_cpu{resource_setting=\"capacity\",experiment_name=~\"$experimentName\"}",
           "format": "time_series",
           "instant": false,
           "intervalFactor": 1,
-          "legendFormat": "Recommended CPU Request",
+          "legendFormat": "Recommended CPU Capacity",
           "refId": "A"
         },
         {
-          "expr": "kruize_recommendations_cpu{resource_setting=\"limits\",experiment_name=~\"$experimentName\"}",
+          "expr": "kruize_recommendations_cpu{resource_setting=\"max\",experiment_name=~\"$experimentName\"}",
           "format": "time_series",
           "instant": false,
           "intervalFactor": 1,
-          "legendFormat": "Recommended CPU Limit",
+          "legendFormat": "Recommended CPU Max",
           "refId": "B"
+        },
+        {
+          "expr": "kruize_recording_cpu{entity=\"cpuUsage\",value_type=\"mean\",experiment_name=~\"$experimentName\"}",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "Current CPU Usage",
+          "refId": "C"
+        },
+        {
+          "expr": "kruize_recording_cpu{entity=\"cpuLimit\",value_type=\"mean\",experiment_name=~\"$experimentName\"}",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "Original CPU Limit",
+          "refId": "D"
+        },
+        {
+          "expr": "kruize_recording_cpu{entity=\"cpuRequest\",value_type=\"mean\",experiment_name=~\"$experimentName\"}",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "Original CPU Request",
+          "refId": "E"
+        },
+        {
+          "expr": "kruize_recording_cpu{entity=\"cpuThrottle\",value_type=\"mean\",experiment_name=~\"$experimentName\"}",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "Current CPU Throttle",
+          "refId": "F"
         }
       ],
       "thresholds": [],
@@ -131,8 +163,12 @@
     },
     {
       "aliasColors": {
-        "Recommended Memory Limit": "#bf1b00",
-        "Recommended Memory Request": "#1f78c1"
+        "Current Memory Usage": "#508642",
+        "Original Memory Limit": "#d683ce",
+        "Original Memory Request": "#f9ba8f",
+        "Current Memory RSS": "#ee67e8",
+        "Recommended Memory Max": "#bf1b00",
+        "Recommended Memory Capacity": "#1f78c1"
       },
       "bars": false,
       "dashLength": 10,
@@ -168,12 +204,12 @@
       "renderer": "flot",
       "seriesOverrides": [
         {
-          "alias": "Recommended Memory Request",
+          "alias": "Recommended Memory Capacity",
           "dashes": true,
           "spaceLength": 5
         },
         {
-          "alias": "Recommended Memory Limit",
+          "alias": "Recommended Memory Max",
           "dashes": true,
           "spaceLength": 5
         }
@@ -183,18 +219,46 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "kruize_recommendations_memory{resource_setting=\"requests\",experiment_name=~\"$experimentName\"}",
+          "expr": "kruize_recommendations_memory{resource_setting=\"capacity\",experiment_name=~\"$experimentName\"}",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Recommended Memory Request",
           "refId": "A"
         },
         {
-          "expr": "kruize_recommendations_memory{resource_setting=\"limits\",experiment_name=~\"$experimentName\"}",
+          "expr": "kruize_recommendations_memory{resource_setting=\"max\",experiment_name=~\"$experimentName\"}",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Recommended Memory Limit",
           "refId": "B"
+        },
+        {
+          "expr": "kruize_recording_memory{entity=\"memoryUsage\",value_type=\"mean\",experiment_name=~\"$experimentName\"}",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "Current Memory Usage",
+          "refId": "C"
+        },
+        {
+          "expr": "kruize_recording_memory{entity=\"memoryLimit\",value_type=\"mean\",experiment_name=~\"$experimentName\"}",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "Original Memory Limit",
+          "refId": "D"
+        },
+        {
+          "expr": "kruize_recording_memory{entity=\"memoryRequest\",value_type=\"mean\",experiment_name=~\"$experimentName\"}",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "Original Memory Request",
+          "refId": "E"
+        },
+        {
+          "expr": "kruize_recording_memory{entity=\"memoryRSS\",value_type=\"mean\",experiment_name=~\"$experimentName\"}",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "legendFormat": "Current Memory RSS",
+          "refId": "F"
         }
       ],
       "thresholds": [],

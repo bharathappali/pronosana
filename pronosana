@@ -100,8 +100,8 @@ CONTAINERS = "containers"
 DEPLOYMENT_NAME = "deployment_name"
 DEPLOYMENTS = "deployments"
 NAMESPACE = "namespace"
-REQUESTS = "requests"
-LIMITS = "limits"
+REQUESTS = "capacity"
+LIMITS = "max"
 RECOMMENDATIONS = "recommendations"
 MEMORY = "memory"
 CPU = "cpu"
@@ -167,21 +167,24 @@ def copy_omf_file_to_prometheus(target=DOCKER, namespace=PRONOSANA_NAMESPACE, po
         print(result.stdout.decode(UTF_8))
 
 
-def convert_json_to_omf(json_content):
+def convert_json_to_omf(reco_json_content, usage_json_content):
+    if reco_json_content is None or usage_json_content is None:
+        return False
     # check if temp dir exists
     if os.path.exists(TEMP_DATA_DIR):
         shutil.rmtree(TEMP_DATA_DIR, ignore_errors=True)
     os.makedirs(TEMP_DATA_DIR)
 
     omf_file_writer = open(OMF_DATA_FILE, "w")
-    SIZE_OF_DATA = len(json_content)
+    SIZE_OF_DATA = len(reco_json_content)
     if USE_REAL_DATA:
         # Needs to be changed after getting timestamps
         curr_time = datetime.now() - timedelta(minutes=(SIZE_OF_DATA * 15))
     else:
         curr_time = datetime.now() - timedelta(minutes=(SIZE_OF_DATA * 15))
     standard_curr_time = curr_time
-    for content in json_content:
+    for i in range(len(usage_json_content)):
+        usage_content = usage_json_content[i]
         # Dummy Initialisation will be removed in future
         cpu_request = 5
         cpu_limit = 3
@@ -189,8 +192,8 @@ def convert_json_to_omf(json_content):
         mem_limit = 50
         cpu_format = "cores"
         mem_format = "Mi"
-        experiment_name = content[EXPERIMENT_NAME]
-        deployments = content[DEPLOYMENTS]
+        experiment_name = usage_content[EXPERIMENT_NAME]
+        deployments = usage_content[DEPLOYMENTS]
         for deployment in deployments:
             deployment_name = deployment[DEPLOYMENT_NAME]
             namespace = deployment[NAMESPACE]
@@ -199,23 +202,23 @@ def convert_json_to_omf(json_content):
                 container_name = container[CONTAINER_NAME]
                 if USE_REAL_DATA:
                     # Need to extract the cpu and mem limit values
-                    cpu_request = round(float(content[RECOMMENDATIONS][CONFIG][REQUESTS][CPU][AMOUNT]), 2)
-                    cpu_limit = round(float(content[RECOMMENDATIONS][CONFIG][LIMITS][CPU][AMOUNT]), 2)
-                    if content[RECOMMENDATIONS][CONFIG][REQUESTS][CPU][FORMAT] is not None and \
-                            content[RECOMMENDATIONS][CONFIG][REQUESTS][CPU][FORMAT] != "":
-                        cpu_format = content[RECOMMENDATIONS][CONFIG][REQUESTS][CPU][FORMAT]
-                    elif content[RECOMMENDATIONS][CONFIG][LIMITS][CPU][FORMAT] is not None and \
-                            content[RECOMMENDATIONS][CONFIG][LIMITS][CPU][FORMAT] != "":
-                        cpu_format = content[RECOMMENDATIONS][CONFIG][LIMITS][CPU][FORMAT]
+                    cpu_request = round(float(usage_content[RECOMMENDATIONS][CONFIG][REQUESTS][CPU][AMOUNT]), 2)
+                    cpu_limit = round(float(usage_content[RECOMMENDATIONS][CONFIG][LIMITS][CPU][AMOUNT]), 2)
+                    if usage_content[RECOMMENDATIONS][CONFIG][REQUESTS][CPU][FORMAT] is not None and \
+                            usage_content[RECOMMENDATIONS][CONFIG][REQUESTS][CPU][FORMAT] != "":
+                        cpu_format = usage_content[RECOMMENDATIONS][CONFIG][REQUESTS][CPU][FORMAT]
+                    elif usage_content[RECOMMENDATIONS][CONFIG][LIMITS][CPU][FORMAT] is not None and \
+                            usage_content[RECOMMENDATIONS][CONFIG][LIMITS][CPU][FORMAT] != "":
+                        cpu_format = usage_content[RECOMMENDATIONS][CONFIG][LIMITS][CPU][FORMAT]
 
-                    mem_request = round(float(content[RECOMMENDATIONS][CONFIG][REQUESTS][MEMORY][AMOUNT]), 2)
-                    mem_limit = round(float(content[RECOMMENDATIONS][CONFIG][LIMITS][MEMORY][AMOUNT]), 2)
-                    if content[RECOMMENDATIONS][CONFIG][REQUESTS][MEMORY][FORMAT] is not None and \
-                            content[RECOMMENDATIONS][CONFIG][REQUESTS][MEMORY][FORMAT] != "":
-                        mem_format = content[RECOMMENDATIONS][CONFIG][REQUESTS][MEMORY][FORMAT]
-                    elif content[RECOMMENDATIONS][CONFIG][LIMITS][MEMORY][FORMAT] is not None and \
-                            content[RECOMMENDATIONS][CONFIG][LIMITS][MEMORY][FORMAT] != "":
-                        mem_format = content[RECOMMENDATIONS][CONFIG][LIMITS][MEMORY][FORMAT]
+                    mem_request = round(float(usage_content[RECOMMENDATIONS][CONFIG][REQUESTS][MEMORY][AMOUNT]), 2)
+                    mem_limit = round(float(usage_content[RECOMMENDATIONS][CONFIG][LIMITS][MEMORY][AMOUNT]), 2)
+                    if usage_content[RECOMMENDATIONS][CONFIG][REQUESTS][MEMORY][FORMAT] is not None and \
+                            usage_content[RECOMMENDATIONS][CONFIG][REQUESTS][MEMORY][FORMAT] != "":
+                        mem_format = usage_content[RECOMMENDATIONS][CONFIG][REQUESTS][MEMORY][FORMAT]
+                    elif usage_content[RECOMMENDATIONS][CONFIG][LIMITS][MEMORY][FORMAT] is not None and \
+                            usage_content[RECOMMENDATIONS][CONFIG][LIMITS][MEMORY][FORMAT] != "":
+                        mem_format = usage_content[RECOMMENDATIONS][CONFIG][LIMITS][MEMORY][FORMAT]
                 else:
                     # Will be removed in future
                     while cpu_request > cpu_limit:
@@ -227,20 +230,128 @@ def convert_json_to_omf(json_content):
                         mem_limit = round(random.uniform(MIN_MEM_LIMIT, MAX_MEM_LIMIT), 2)
 
                 temp_time = curr_time
+                # Processing Container Metrics
+                CONTAINER_METRICS = "container_metrics"
+                RESULTS = "results"
+                GENERAL_INFO = "general_info"
+                SUM = "sum"
+                MEAN = "mean"
+                UNITS = "units"
+                container_metrics = container[CONTAINER_METRICS]
+
+                CPU_REQUEST = "cpuRequest"
+                cpu_request_sum_value = container_metrics[CPU_REQUEST][RESULTS][GENERAL_INFO][SUM]
+                cpu_request_mean_value = container_metrics[CPU_REQUEST][RESULTS][GENERAL_INFO][MEAN]
+                cpu_request_units = container_metrics[CPU_REQUEST][RESULTS][GENERAL_INFO][UNITS]
+
+                CPU_THROTTLE = "cpuThrottle"
+                cpu_throttle_sum_value = container_metrics[CPU_THROTTLE][RESULTS][GENERAL_INFO][SUM]
+                cpu_throttle_mean_value = container_metrics[CPU_THROTTLE][RESULTS][GENERAL_INFO][MEAN]
+                cpu_throttle_units = container_metrics[CPU_THROTTLE][RESULTS][GENERAL_INFO][UNITS]
+
+                CPU_LIMIT = "cpuLimit"
+                cpu_limit_sum_value = container_metrics[CPU_LIMIT][RESULTS][GENERAL_INFO][SUM]
+                cpu_limit_mean_value = container_metrics[CPU_LIMIT][RESULTS][GENERAL_INFO][MEAN]
+                cpu_limit_units = container_metrics[CPU_LIMIT][RESULTS][GENERAL_INFO][UNITS]
+
+                CPU_USAGE = "cpuUsage"
+                cpu_usage_sum_value = container_metrics[CPU_USAGE][RESULTS][GENERAL_INFO][SUM]
+                cpu_usage_mean_value = container_metrics[CPU_USAGE][RESULTS][GENERAL_INFO][MEAN]
+                cpu_usage_units = container_metrics[CPU_USAGE][RESULTS][GENERAL_INFO][UNITS]
+
+                MEM_REQUEST = "memoryRequest"
+                mem_request_sum_value = container_metrics[MEM_REQUEST][RESULTS][GENERAL_INFO][SUM]
+                mem_request_mean_value = container_metrics[MEM_REQUEST][RESULTS][GENERAL_INFO][MEAN]
+                mem_request_units = container_metrics[MEM_REQUEST][RESULTS][GENERAL_INFO][UNITS]
+
+                MEM_LIMIT = "memoryLimit"
+                mem_limit_sum_value = container_metrics[MEM_LIMIT][RESULTS][GENERAL_INFO][SUM]
+                mem_limit_mean_value = container_metrics[MEM_LIMIT][RESULTS][GENERAL_INFO][MEAN]
+                mem_limit_units = container_metrics[MEM_LIMIT][RESULTS][GENERAL_INFO][UNITS]
+
+                MEM_RSS = "memoryRSS"
+                mem_rss_sum_value = container_metrics[MEM_RSS][RESULTS][GENERAL_INFO][SUM]
+                mem_rss_mean_value = container_metrics[MEM_RSS][RESULTS][GENERAL_INFO][MEAN]
+                mem_rss_units = container_metrics[MEM_RSS][RESULTS][GENERAL_INFO][UNITS]
+
+                MEM_USAGE = "memoryUsage"
+                mem_usage_sum_value = container_metrics[MEM_USAGE][RESULTS][GENERAL_INFO][SUM]
+                mem_usage_mean_value = container_metrics[MEM_USAGE][RESULTS][GENERAL_INFO][MEAN]
+                mem_usage_units = container_metrics[MEM_USAGE][RESULTS][GENERAL_INFO][UNITS]
+
                 while temp_time < curr_time + delta_15:
                     LINES_TO_WRITE = []
                     LINES_TO_WRITE.append("# HELP kruize_recommendations_cpu recorded cpu & mem records\n")
                     LINES_TO_WRITE.append("# TYPE kruize_recommendations_cpu gauge\n")
                     LINES_TO_WRITE.append(
-                        f'kruize_recommendations_cpu{{resource_setting="requests",container_name="{container_name}",deployment_name="{deployment_name}",format="{cpu_format}",namespace="{namespace}",experiment_name="{experiment_name}"}} {cpu_request} {int(temp_time.timestamp())}\n')
+                        f'kruize_recommendations_cpu{{resource_setting="capacity",container_name="{container_name}",deployment_name="{deployment_name}",format="{cpu_format}",namespace="{namespace}",experiment_name="{experiment_name}"}} {cpu_request} {int(temp_time.timestamp())}\n')
                     LINES_TO_WRITE.append(
-                        f'kruize_recommendations_cpu{{resource_setting="limits",container_name="{container_name}",deployment_name="{deployment_name}",format="{cpu_format}",namespace="{namespace}",experiment_name="{experiment_name}"}} {cpu_limit} {int(temp_time.timestamp())}\n')
+                        f'kruize_recommendations_cpu{{resource_setting="max",container_name="{container_name}",deployment_name="{deployment_name}",format="{cpu_format}",namespace="{namespace}",experiment_name="{experiment_name}"}} {cpu_limit} {int(temp_time.timestamp())}\n')
                     LINES_TO_WRITE.append("# HELP kruize_recommendations_memory recorded cpu & mem records\n")
                     LINES_TO_WRITE.append("# TYPE kruize_recommendations_memory gauge\n")
                     LINES_TO_WRITE.append(
-                        f'kruize_recommendations_memory{{resource_setting="requests",container_name="{container_name}",deployment_name="{deployment_name}",format="{mem_format}",namespace="{namespace}",experiment_name="{experiment_name}"}} {mem_request} {int(temp_time.timestamp())}\n')
+                        f'kruize_recommendations_memory{{resource_setting="capacity",container_name="{container_name}",deployment_name="{deployment_name}",format="{mem_format}",namespace="{namespace}",experiment_name="{experiment_name}"}} {mem_request} {int(temp_time.timestamp())}\n')
                     LINES_TO_WRITE.append(
-                        f'kruize_recommendations_memory{{resource_setting="limits",container_name="{container_name}",deployment_name="{deployment_name}",format="{mem_format}",namespace="{namespace}",experiment_name="{experiment_name}"}} {mem_limit} {int(temp_time.timestamp())}\n')
+                        f'kruize_recommendations_memory{{resource_setting="max",container_name="{container_name}",deployment_name="{deployment_name}",format="{mem_format}",namespace="{namespace}",experiment_name="{experiment_name}"}} {mem_limit} {int(temp_time.timestamp())}\n')
+                    ### Container metrics
+                    ## CPU related metrics
+                    # CPU usage
+                    LINES_TO_WRITE.append(
+                        f'kruize_recording_cpu{{entity="{CPU_USAGE}",units="{cpu_usage_units}",value_type="{SUM}",container_name="{container_name}",deployment_name="{deployment_name}",namespace="{namespace}",experiment_name="{experiment_name}"}} {cpu_usage_sum_value} {int(temp_time.timestamp())}\n'
+                    )
+                    LINES_TO_WRITE.append(
+                        f'kruize_recording_cpu{{entity="{CPU_USAGE}",units="{cpu_usage_units}",value_type="{MEAN}",container_name="{container_name}",deployment_name="{deployment_name}",namespace="{namespace}",experiment_name="{experiment_name}"}} {cpu_usage_mean_value} {int(temp_time.timestamp())}\n'
+                    )
+                    # CPU Request
+                    LINES_TO_WRITE.append(
+                        f'kruize_recording_cpu{{entity="{CPU_REQUEST}",units="{cpu_request_units}",value_type="{SUM}",container_name="{container_name}",deployment_name="{deployment_name}",namespace="{namespace}",experiment_name="{experiment_name}"}} {cpu_request_sum_value} {int(temp_time.timestamp())}\n'
+                    )
+                    LINES_TO_WRITE.append(
+                        f'kruize_recording_cpu{{entity="{CPU_REQUEST}",units="{cpu_request_units}",value_type="{MEAN}",container_name="{container_name}",deployment_name="{deployment_name}",namespace="{namespace}",experiment_name="{experiment_name}"}} {cpu_request_mean_value} {int(temp_time.timestamp())}\n'
+                    )
+                    # CPU Limits
+                    LINES_TO_WRITE.append(
+                        f'kruize_recording_cpu{{entity="{CPU_LIMIT}",units="{cpu_limit_units}",value_type="{SUM}",container_name="{container_name}",deployment_name="{deployment_name}",namespace="{namespace}",experiment_name="{experiment_name}"}} {cpu_limit_sum_value} {int(temp_time.timestamp())}\n'
+                    )
+                    LINES_TO_WRITE.append(
+                        f'kruize_recording_cpu{{entity="{CPU_LIMIT}",units="{cpu_limit_units}",value_type="{MEAN}",container_name="{container_name}",deployment_name="{deployment_name}",namespace="{namespace}",experiment_name="{experiment_name}"}} {cpu_limit_mean_value} {int(temp_time.timestamp())}\n'
+                    )
+                    # CPU Throttle
+                    LINES_TO_WRITE.append(
+                        f'kruize_recording_cpu{{entity="{CPU_THROTTLE}",units="{cpu_throttle_units}",value_type="{SUM}",container_name="{container_name}",deployment_name="{deployment_name}",namespace="{namespace}",experiment_name="{experiment_name}"}} {cpu_throttle_sum_value} {int(temp_time.timestamp())}\n'
+                    )
+                    LINES_TO_WRITE.append(
+                        f'kruize_recording_cpu{{entity="{CPU_THROTTLE}",units="{cpu_throttle_units}",value_type="{MEAN}",container_name="{container_name}",deployment_name="{deployment_name}",namespace="{namespace}",experiment_name="{experiment_name}"}} {cpu_throttle_mean_value} {int(temp_time.timestamp())}\n'
+                    )
+                    ## Memory related metrics
+                    # Memory Usage
+                    LINES_TO_WRITE.append(
+                        f'kruize_recording_memory{{entity="{MEM_USAGE}",units="{mem_usage_units}",value_type="{SUM}",container_name="{container_name}",deployment_name="{deployment_name}",namespace="{namespace}",experiment_name="{experiment_name}"}} {mem_usage_sum_value} {int(temp_time.timestamp())}\n'
+                    )
+                    LINES_TO_WRITE.append(
+                        f'kruize_recording_memory{{entity="{MEM_USAGE}",units="{mem_usage_units}",value_type="{MEAN}",container_name="{container_name}",deployment_name="{deployment_name}",namespace="{namespace}",experiment_name="{experiment_name}"}} {mem_usage_mean_value} {int(temp_time.timestamp())}\n'
+                    )
+                    # Memory limit
+                    LINES_TO_WRITE.append(
+                        f'kruize_recording_memory{{entity="{MEM_LIMIT}",units="{mem_limit_units}",value_type="{SUM}",container_name="{container_name}",deployment_name="{deployment_name}",namespace="{namespace}",experiment_name="{experiment_name}"}} {mem_limit_sum_value} {int(temp_time.timestamp())}\n'
+                    )
+                    LINES_TO_WRITE.append(
+                        f'kruize_recording_memory{{entity="{MEM_LIMIT}",units="{mem_limit_units}",value_type="{MEAN}",container_name="{container_name}",deployment_name="{deployment_name}",namespace="{namespace}",experiment_name="{experiment_name}"}} {mem_limit_mean_value} {int(temp_time.timestamp())}\n'
+                    )
+                    # Memory Request
+                    LINES_TO_WRITE.append(
+                        f'kruize_recording_memory{{entity="{MEM_REQUEST}",units="{mem_request_units}",value_type="{SUM}",container_name="{container_name}",deployment_name="{deployment_name}",namespace="{namespace}",experiment_name="{experiment_name}"}} {mem_request_sum_value} {int(temp_time.timestamp())}\n'
+                    )
+                    LINES_TO_WRITE.append(
+                        f'kruize_recording_memory{{entity="{MEM_REQUEST}",units="{mem_request_units}",value_type="{MEAN}",container_name="{container_name}",deployment_name="{deployment_name}",namespace="{namespace}",experiment_name="{experiment_name}"}} {mem_request_mean_value} {int(temp_time.timestamp())}\n'
+                    )
+                    # Memory RSS
+                    LINES_TO_WRITE.append(
+                        f'kruize_recording_memory{{entity="{MEM_RSS}",units="{mem_rss_units}",value_type="{SUM}",container_name="{container_name}",deployment_name="{deployment_name}",namespace="{namespace}",experiment_name="{experiment_name}"}} {mem_rss_sum_value} {int(temp_time.timestamp())}\n'
+                    )
+                    LINES_TO_WRITE.append(
+                        f'kruize_recording_memory{{entity="{MEM_RSS}",units="{mem_rss_units}",value_type="{MEAN}",container_name="{container_name}",deployment_name="{deployment_name}",namespace="{namespace}",experiment_name="{experiment_name}"}} {mem_rss_mean_value} {int(temp_time.timestamp())}\n'
+                    )
                     omf_file_writer.writelines(LINES_TO_WRITE)
                     LINES_TO_WRITE.clear()
                     temp_time = temp_time + timedelta(seconds=15)
@@ -403,7 +514,7 @@ def initiate_backfill(json_path: str):
     if 0 == len(json_content):
         print("[PRONOSANA BACKFILL] -> Invalid JSON. Aborting backfill")
         exit(1)
-    success = convert_json_to_omf(json_content)
+    success = convert_json_to_omf(json_content, None)
     if not success:
         print("[PRONOSANA BACKFILL] -> Error converting JSON to OpenMetrics Format. Aborting backfill")
         exit(1)
@@ -630,11 +741,46 @@ def initiate_pronosana_minikube(force=False):
     print("[PRONOSANA INIT] -> Init completed please check pod status before running backfill")
 
 
-def initiate_backfill_minikube(json_path: str):
+def initiate_backfill_minikube(usage_json_path: str, recommendation_json_path: str):
     pod_running = check_if_pod_running(PRONOSANA_DEPLOYMENT_NAME)
     if pod_running:
         pod_name = get_pod_name(PRONOSANA_DEPLOYMENT_NAME)
         if pod_name is not None:
+            result_data = "resultData"
+            time_format = "%a %b %d %H:%M:%S %Z %Y"
+            if not os.path.exists(usage_json_path):
+                print("[PRONOSANA BACKFILL] -> Invalid Usage JSON path. Aborting backfill")
+                exit(1)
+            if not os.path.exists(recommendation_json_path):
+                print("[PRONOSANA BACKFILL] -> Invalid Recommendation JSON path. Aborting backfill")
+                exit(1)
+            with open(usage_json_path, 'r') as myfile:
+                data = myfile.read()
+
+            usage_json_content = []
+            usage_json_content_raw = json.loads(data)
+            for key, value in usage_json_content_raw.items():
+                for data in usage_json_content_raw[key][result_data]:
+                    end_time = datetime.strptime(data['end_timestamp'], time_format)
+                    data['tmp_timestamp'] = int(end_time.timestamp())
+
+                usage_json_content_raw[key][result_data].sort(key=lambda k: k['tmp_timestamp'])
+                usage_json_content.extend(usage_json_content_raw[key][result_data])
+
+            with open(recommendation_json_path, 'r') as myfile:
+                data = myfile.read()
+
+            recommendation_json_content = json.loads(data)
+            if 0 == len(usage_json_content):
+                print("[PRONOSANA BACKFILL] -> Invalid Usage JSON. Aborting backfill")
+                exit(1)
+            if 0 == len(recommendation_json_content):
+                print("[PRONOSANA BACKFILL] -> Invalid Recommendation JSON. Aborting backfill")
+                exit(1)
+            success = convert_json_to_omf(recommendation_json_content, usage_json_content)
+            if not success:
+                print("[PRONOSANA BACKFILL] -> Error converting JSON to OpenMetrics Format. Aborting backfill")
+                exit(1)
             copy_omf_file_to_prometheus(target=MINIKUBE, namespace=PRONOSANA_NAMESPACE, pod_name=pod_name)
             BACKFILL_DATA = [
                 "kubectl",
@@ -679,11 +825,13 @@ def main(
                                    help="Mode to run `pronosana`. Supported modes are `init`, `backfill`, `cleanup`"),
         target: str = typer.Argument(...,
                                      help="Target to deploy `pronosana`. Supported modes are `docker`, `minikube`"),
-        json: str = typer.Option(None, help="JSON file path to data backfill")
+        usage_data_json: str = typer.Option(None, help="Usage JSON file path to backfill"),
+        recommendation_data_json: str = typer.Option(None, help="Recommendation JSON file path to backfill")
 ):
     mode = mode.strip().lower()
     target = target.strip().lower()
-    json_path = json
+    usage_json_path = usage_data_json.strip()
+    recommendation_json_path = recommendation_data_json.strip()
     if mode not in MODES:
         print(f"Invalid mode - {mode}. Supported modes are {MODES}")
         exit(1)
@@ -699,9 +847,9 @@ def main(
             initiate_pronosana_minikube()
     elif mode == BACKFILL:
         if target == DOCKER:
-            initiate_backfill(json_path)
+            initiate_backfill(usage_json_path)
         elif target == MINIKUBE:
-            initiate_backfill_minikube(json_path)
+            initiate_backfill_minikube(usage_json_path, recommendation_json_path)
     elif mode == CLEAN_UP:
         if target == DOCKER:
             initiate_cleanup()
